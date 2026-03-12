@@ -1,4 +1,4 @@
-import 'package:currencyx/common/colors.dart';
+import 'package:currencyx/common/constants/colors.dart';
 import 'package:flutter/material.dart';
 
 class LoadingProgressBar extends StatefulWidget {
@@ -29,19 +29,19 @@ class _LoadingProgressBarState extends State<LoadingProgressBar>
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 6,
-        width: double.infinity,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) => CustomPaint(
-            painter: _ProgressBarPainter(
-              progress: _controller.value,
-              foregroundColor: AppColors.primaryColor,
-              backgroundColor: AppColors.primaryColorShadowColor,
-            ),
-          ),
+    height: 6,
+    width: double.infinity,
+    child: AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => CustomPaint(
+        painter: _ProgressBarPainter(
+          progress: _controller.value,
+          foregroundColor: AppColors.primaryColor,
+          backgroundColor: AppColors.primaryColorShadowColor,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ProgressBarPainter extends CustomPainter {
@@ -69,7 +69,6 @@ class _ProgressBarPainter extends CustomPainter {
 
     final radius = Radius.circular(size.height / 2);
 
-    // Draw full background track
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(0, 0, size.width, size.height),
@@ -80,14 +79,9 @@ class _ProgressBarPainter extends CustomPainter {
 
     final barWidth = size.width * _barFraction;
 
-    // Bar travels from fully off-screen left (-barWidth)
-    // to fully off-screen right (size.width).
-    // At progress=0 → barLeft = -barWidth (fully hidden left)
-    // At progress=1 → barLeft =  size.width (fully hidden right)
     final barLeft = -barWidth + progress * (size.width + barWidth);
     final barRight = barLeft + barWidth;
 
-    // Clip to visible track area before drawing
     final visibleLeft = barLeft.clamp(0.0, size.width);
     final visibleRight = barRight.clamp(0.0, size.width);
 

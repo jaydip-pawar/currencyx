@@ -16,7 +16,8 @@ analyzer:
 
   exclude:
     - "**/*.mapper.dart"
-    - "lib/core/assets/**"
+    - "lib/common/assets/**"
+    - "pubspec.yaml"
 
 linter:
   rules:

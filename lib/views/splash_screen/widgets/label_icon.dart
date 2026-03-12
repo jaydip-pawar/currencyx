@@ -1,4 +1,4 @@
-import 'package:currencyx/common/colors.dart';
+import 'package:currencyx/common/constants/colors.dart';
 import 'package:flutter/material.dart';
 
 class LabelIcon extends StatelessWidget {
