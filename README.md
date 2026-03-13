@@ -2,10 +2,13 @@
 
 A multi-currency converter and exchange rate viewer built with Flutter. Convert and sum multiple currencies simultaneously, browse live exchange rates, and configure your preferred base currency — all backed by real-time data from the Exchange Rates Data API.
 
+**Live Demo:** https://currencyx-b53c5.web.app/
+
 ---
 
 ## Table of Contents
 
+- [Live Demo](#live-demo)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Build & Run Instructions](#build--run-instructions)
@@ -13,6 +16,14 @@ A multi-currency converter and exchange rate viewer built with Flutter. Convert 
 - [Architecture & Design Decisions](#architecture--design-decisions)
 - [App Flow](#app-flow)
 - [Assumptions](#assumptions)
+
+---
+
+## Live Demo
+
+A demo version of the app is deployed on Firebase Hosting. You can test it directly in your browser:
+
+https://currencyx-b53c5.web.app/
 
 ---
 
