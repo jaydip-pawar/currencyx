@@ -16,6 +16,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final navIndex = ref.watch(navIndexProvider);
+    final isSaving = ref.watch(settingsSavingProvider);
 
     ref.listen(homeViewModelProvider, (previous, next) {
       if (next.hasError) {
@@ -42,7 +43,9 @@ class HomeScreen extends ConsumerWidget {
       body: _screens[navIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: navIndex,
-        onDestinationSelected: ref.read(navIndexProvider.notifier).set,
+        onDestinationSelected: isSaving
+            ? null
+            : ref.read(navIndexProvider.notifier).set,
         backgroundColor: AppColors.white,
         indicatorColor: AppColors.primaryColor.withValues(alpha: .12),
         destinations: const [

@@ -24,6 +24,10 @@ final baseCurrencyProvider = NotifierProvider<BaseCurrencyNotifier, String>(
   BaseCurrencyNotifier.new,
 );
 
+final settingsSavingProvider = NotifierProvider<SettingsSavingNotifier, bool>(
+  SettingsSavingNotifier.new,
+);
+
 final tickProvider = NotifierProvider<TickNotifier, int>(TickNotifier.new);
 
 class NavIndexNotifier extends Notifier<int> {
@@ -33,14 +37,34 @@ class NavIndexNotifier extends Notifier<int> {
   void set(int index) => state = index;
 }
 
+class SettingsSavingNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) => state = value;
+}
+
 class BaseCurrencyNotifier extends Notifier<String> {
   @override
-  String build() => 'USD';
+  String build() {
+    final cache = ref.read(currencyCacheProvider);
+    return cache.baseCurrency;
+  }
 
-  void set(String code) {
-    if (code == state) return;
-    state = code;
-    ref.read(homeViewModelProvider.notifier).refreshRates();
+  Future<bool> set(String code) async {
+    if (code == state) return true;
+    final repo = ref.read(currencyRepositoryProvider);
+    try {
+      final currencies = await repo.fetchCurrencies(base: code);
+      state = code;
+      final cache = ref.read(currencyCacheProvider);
+      await cache.setBaseCurrency(code);
+      ref.read(calculationProvider.notifier).reset();
+      ref.read(homeViewModelProvider.notifier).setData(currencies);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
 
@@ -89,35 +113,27 @@ class EntriesNotifier extends Notifier<List<EntryData>> {
 }
 
 class CalculationState {
-  const CalculationState({
-    this.total = 0,
-    this.timestamp,
-    this.isCalculating = false,
-  });
+  const CalculationState({this.total = 0, this.isCalculating = false});
 
   final double total;
-  final int? timestamp;
   final bool isCalculating;
 
-  CalculationState copyWith({
-    double? total,
-    int? timestamp,
-    bool? isCalculating,
-  }) => CalculationState(
-    total: total ?? this.total,
-    timestamp: timestamp ?? this.timestamp,
-    isCalculating: isCalculating ?? this.isCalculating,
-  );
+  CalculationState copyWith({double? total, bool? isCalculating}) =>
+      CalculationState(
+        total: total ?? this.total,
+        isCalculating: isCalculating ?? this.isCalculating,
+      );
 }
 
 class CalculationNotifier extends Notifier<CalculationState> {
   @override
   CalculationState build() => const CalculationState();
 
+  void reset() => state = const CalculationState();
+
   Future<void> calculate(List<({String code, double amount})> entries) async {
     state = state.copyWith(isCalculating: true);
 
-    await ref.read(homeViewModelProvider.notifier).refreshRates();
     final currencies = ref.read(homeViewModelProvider).value ?? [];
 
     double total = 0;
@@ -128,15 +144,14 @@ class CalculationNotifier extends Notifier<CalculationState> {
       }
     }
 
-    final timestamp = currencies.isNotEmpty ? currencies.first.timestamp : null;
-    state = CalculationState(total: total, timestamp: timestamp);
+    state = CalculationState(total: total);
   }
 
   String updatedAgoLabel() {
-    if (state.timestamp == null) return 'Not updated yet';
-    final updatedAt = DateTime.fromMillisecondsSinceEpoch(
-      state.timestamp! * 1000,
-    );
+    final currencies = ref.read(homeViewModelProvider).value;
+    final timestamp = currencies?.firstOrNull?.timestamp;
+    if (timestamp == null) return 'Not updated yet';
+    final updatedAt = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
     final diff = DateTime.now().difference(updatedAt);
     if (diff.inSeconds < 60) return 'Updated just now';
     if (diff.inMinutes < 60) return 'Updated ${diff.inMinutes}m ago';
@@ -148,8 +163,16 @@ class CalculationNotifier extends Notifier<CalculationState> {
 class HomeViewModel extends AsyncNotifier<List<CurrencyData>> {
   @override
   Future<List<CurrencyData>> build() async {
+    final repo = ref.read(currencyRepositoryProvider);
+    final cached = repo.loadFromCache();
+    if (cached.isNotEmpty) return cached;
+
     final base = ref.read(baseCurrencyProvider);
-    return ref.read(currencyRepositoryProvider).fetchCurrencies(base: base);
+    return repo.fetchCurrencies(base: base);
+  }
+
+  void setData(List<CurrencyData> data) {
+    state = AsyncData(data);
   }
 
   Future<void> refreshRates() async {
@@ -158,5 +181,19 @@ class HomeViewModel extends AsyncNotifier<List<CurrencyData>> {
       final base = ref.read(baseCurrencyProvider);
       return ref.read(currencyRepositoryProvider).refreshRates(base: base);
     });
+  }
+
+  Future<bool> updateRates() async {
+    final previousData = state.value;
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final base = ref.read(baseCurrencyProvider);
+      return ref.read(currencyRepositoryProvider).fetchCurrencies(base: base);
+    });
+    if (state.hasError && previousData != null) {
+      state = AsyncData(previousData);
+      return false;
+    }
+    return !state.hasError;
   }
 }

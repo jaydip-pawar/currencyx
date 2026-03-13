@@ -143,7 +143,10 @@ class _ConverterViewState extends ConsumerState<ConverterView> {
           AddCurrencyButton(onPressed: ref.read(entriesProvider.notifier).add),
           const SizedBox(height: 24),
           CalculateButton(
-            onPressed: (!_hasAmount || calcState.isCalculating)
+            onPressed:
+                (!_hasAmount ||
+                    calcState.isCalculating ||
+                    !ref.watch(homeViewModelProvider).hasValue)
                 ? null
                 : _onCalculate,
             isLoading: calcState.isCalculating,

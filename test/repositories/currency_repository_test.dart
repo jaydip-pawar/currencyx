@@ -4,19 +4,27 @@ import 'package:currencyx/models/rates/rates.dart';
 import 'package:currencyx/models/symbols/symbols.dart';
 import 'package:currencyx/repositories/currency_repository.dart';
 import 'package:currencyx/services/api_services.dart';
+import 'package:currencyx/services/currency_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:twofold/twofold.dart';
 
 class MockApiService extends Mock implements ApiService {}
 
+class MockCurrencyCache extends Mock implements CurrencyCache {}
+
 void main() {
   late MockApiService mockApi;
+  late MockCurrencyCache mockCache;
   late CurrencyRepository repository;
 
   setUp(() {
     mockApi = MockApiService();
-    repository = CurrencyRepository(mockApi);
+    mockCache = MockCurrencyCache();
+    when(() => mockCache.saveAll(any())).thenAnswer((_) async {});
+    when(() => mockCache.getAll()).thenReturn(<Map<String, dynamic>>[]);
+    when(() => mockCache.hasData).thenReturn(false);
+    repository = CurrencyRepository(mockApi, mockCache);
   });
 
   group('fetchCurrencies', () {

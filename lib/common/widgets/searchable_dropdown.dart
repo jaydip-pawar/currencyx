@@ -118,7 +118,7 @@ class _SearchableDropdownState<T extends Object>
             Expanded(
               child: widget.selectedItem != null
                   ? (widget.headerBuilder != null
-                        ? widget.headerBuilder!(widget.selectedItem as T)
+                        ? widget.headerBuilder!(widget.selectedItem!)
                         : Text(
                             widget.selectedItem.toString(),
                             style: const TextStyle(
@@ -148,7 +148,7 @@ class _SearchableDropdownState<T extends Object>
   );
 
   Widget _buildOverlay(BuildContext outerContext) {
-    final renderBox = context.findRenderObject() as RenderBox;
+    final renderBox = context.findRenderObject()! as RenderBox;
     final triggerPos = renderBox.localToGlobal(Offset.zero);
     final top = triggerPos.dy + renderBox.size.height + 4;
 

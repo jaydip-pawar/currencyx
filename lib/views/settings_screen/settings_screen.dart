@@ -5,11 +5,48 @@ import 'package:currencyx/views/home_screen/widgets/currency_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  String? _pendingCurrency;
+  bool _isSaving = false;
+
+  Future<void> _onSave() async {
+    final code = _pendingCurrency;
+    if (code == null) return;
+
+    setState(() => _isSaving = true);
+    ref.read(settingsSavingProvider.notifier).set(true);
+    final success = await ref.read(baseCurrencyProvider.notifier).set(code);
+    if (!mounted) return;
+    ref.read(settingsSavingProvider.notifier).set(false);
+    setState(() => _isSaving = false);
+
+    if (success) {
+      setState(() => _pendingCurrency = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Base currency updated'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to update. Please try again.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final baseCurrency = ref.watch(baseCurrencyProvider);
     final currencyItems =
         ref
@@ -18,6 +55,10 @@ class SettingsScreen extends ConsumerWidget {
             ?.map((e) => CurrencyItem(code: e.code, name: e.name))
             .toList() ??
         [];
+
+    final displayCurrency = _pendingCurrency ?? baseCurrency;
+    final hasChanges =
+        _pendingCurrency != null && _pendingCurrency != baseCurrency;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -53,17 +94,53 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              SearchableDropdown<CurrencyItem>(
-                items: currencyItems,
-                selectedItem: currencyItems
-                    .where((c) => c.code == baseCurrency)
-                    .firstOrNull,
-                hintText: 'Select currency',
-                searchHintText: 'Search currency...',
-                onChanged: (value) {
-                  ref.read(baseCurrencyProvider.notifier).set(value.code);
-                },
+              IgnorePointer(
+                ignoring: _isSaving,
+                child: SearchableDropdown<CurrencyItem>(
+                  items: currencyItems,
+                  selectedItem: currencyItems
+                      .where((c) => c.code == displayCurrency)
+                      .firstOrNull,
+                  hintText: 'Select currency',
+                  searchHintText: 'Search currency...',
+                  onChanged: (value) {
+                    setState(() => _pendingCurrency = value.code);
+                  },
+                ),
               ),
+              if (hasChanges) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _onSave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: AppColors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: AppColors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            'Save',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:currencyx/models/currency_data/currency_data.dart';
 import 'package:currencyx/repositories/currency_repository.dart';
+import 'package:currencyx/services/currency_cache.dart';
 import 'package:currencyx/views/home_screen/viewmodel/home_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,8 +8,11 @@ import 'package:mocktail/mocktail.dart';
 
 class MockCurrencyRepository extends Mock implements CurrencyRepository {}
 
+class MockCurrencyCache extends Mock implements CurrencyCache {}
+
 void main() {
   late MockCurrencyRepository mockRepo;
+  late MockCurrencyCache mockCache;
   late ProviderContainer container;
 
   final testCurrencies = [
@@ -23,8 +27,16 @@ void main() {
 
   setUp(() {
     mockRepo = MockCurrencyRepository();
+    mockCache = MockCurrencyCache();
+    when(() => mockRepo.loadFromCache()).thenReturn([]);
+    when(() => mockCache.baseCurrency).thenReturn('USD');
+    when(() => mockCache.setBaseCurrency(any())).thenAnswer((_) async {});
+    when(() => mockCache.clearAll()).thenAnswer((_) async {});
     container = ProviderContainer(
-      overrides: [currencyRepositoryProvider.overrideWithValue(mockRepo)],
+      overrides: [
+        currencyRepositoryProvider.overrideWithValue(mockRepo),
+        currencyCacheProvider.overrideWithValue(mockCache),
+      ],
     );
   });
 
@@ -48,7 +60,7 @@ void main() {
       ).thenAnswer((_) async => throw Exception('Network error'));
 
       // Trigger provider build
-      container.listen(homeViewModelProvider, (_, __) {});
+      container.listen(homeViewModelProvider, (_, _) {});
       // Allow async build to complete
       await Future<void>.delayed(Duration.zero);
 
@@ -94,24 +106,47 @@ void main() {
       when(
         () => mockRepo.fetchCurrencies(base: any(named: 'base')),
       ).thenAnswer((_) async => testCurrencies);
-      when(
-        () => mockRepo.refreshRates(base: any(named: 'base')),
-      ).thenAnswer((_) async => testCurrencies);
 
       // Initialize viewmodel first
       await container.read(homeViewModelProvider.future);
 
-      container.read(baseCurrencyProvider.notifier).set('EUR');
+      final success = await container
+          .read(baseCurrencyProvider.notifier)
+          .set('EUR');
 
+      expect(success, true);
       expect(container.read(baseCurrencyProvider), 'EUR');
-      verify(() => mockRepo.refreshRates(base: 'EUR')).called(1);
+      verify(() => mockCache.setBaseCurrency('EUR')).called(1);
+      verify(() => mockRepo.fetchCurrencies(base: 'EUR')).called(1);
     });
 
-    test('set with same value does nothing', () {
-      container.read(baseCurrencyProvider.notifier).set('USD');
+    test('set returns false on API failure', () async {
+      when(
+        () => mockRepo.fetchCurrencies(base: any(named: 'base')),
+      ).thenAnswer((_) async => testCurrencies);
 
+      await container.read(homeViewModelProvider.future);
+
+      when(
+        () => mockRepo.fetchCurrencies(base: 'XYZ'),
+      ).thenThrow(Exception('API error'));
+
+      final success = await container
+          .read(baseCurrencyProvider.notifier)
+          .set('XYZ');
+
+      expect(success, false);
       expect(container.read(baseCurrencyProvider), 'USD');
-      verifyNever(() => mockRepo.refreshRates(base: any(named: 'base')));
+    });
+
+    test('set with same value does nothing', () async {
+      final success = await container
+          .read(baseCurrencyProvider.notifier)
+          .set('USD');
+
+      expect(success, true);
+      expect(container.read(baseCurrencyProvider), 'USD');
+      verifyNever(() => mockRepo.fetchCurrencies(base: any(named: 'base')));
     });
   });
 
@@ -173,15 +208,11 @@ void main() {
 
       expect(state.total, 0);
       expect(state.isCalculating, false);
-      expect(state.timestamp, isNull);
     });
 
     test('calculates total correctly', () async {
       when(
         () => mockRepo.fetchCurrencies(base: any(named: 'base')),
-      ).thenAnswer((_) async => testCurrencies);
-      when(
-        () => mockRepo.refreshRates(base: any(named: 'base')),
       ).thenAnswer((_) async => testCurrencies);
 
       await container.read(homeViewModelProvider.future);
@@ -194,15 +225,11 @@ void main() {
 
       expect(state.total, 100.0); // 85 / 0.85 = 100
       expect(state.isCalculating, false);
-      expect(state.timestamp, 1234567890);
     });
 
     test('calculates total from multiple entries', () async {
       when(
         () => mockRepo.fetchCurrencies(base: any(named: 'base')),
-      ).thenAnswer((_) async => testCurrencies);
-      when(
-        () => mockRepo.refreshRates(base: any(named: 'base')),
       ).thenAnswer((_) async => testCurrencies);
 
       await container.read(homeViewModelProvider.future);
@@ -222,9 +249,6 @@ void main() {
       when(
         () => mockRepo.fetchCurrencies(base: any(named: 'base')),
       ).thenAnswer((_) async => testCurrencies);
-      when(
-        () => mockRepo.refreshRates(base: any(named: 'base')),
-      ).thenAnswer((_) async => testCurrencies);
 
       await container.read(homeViewModelProvider.future);
 
@@ -238,9 +262,6 @@ void main() {
     test('skips unknown currency codes', () async {
       when(
         () => mockRepo.fetchCurrencies(base: any(named: 'base')),
-      ).thenAnswer((_) async => testCurrencies);
-      when(
-        () => mockRepo.refreshRates(base: any(named: 'base')),
       ).thenAnswer((_) async => testCurrencies);
 
       await container.read(homeViewModelProvider.future);

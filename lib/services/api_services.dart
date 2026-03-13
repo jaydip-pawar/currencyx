@@ -18,8 +18,8 @@ Future<Map<String, dynamic>> _get(
   final dio =
       Dio(
           BaseOptions(
-            connectTimeout: const Duration(seconds: 10),
-            receiveTimeout: const Duration(seconds: 10),
+            connectTimeout: const Duration(seconds: 30),
+            receiveTimeout: const Duration(seconds: 30),
           ),
         )
         ..options.baseUrl = AppConstants.baseUrl
@@ -41,12 +41,15 @@ Future<Map<String, dynamic>> _get(
 Future<Twofold<T, NetworkError>> safeApiCall<T>(String path) async {
   try {
     final response = await _get(path);
+    print('[API] $path → $response');
 
     final result = MapperContainer.globals.fromValue<T>(response);
     return Twofold.success(result);
   } on DioException catch (e) {
+    print('[API ERROR] $path → DioException: ${e.message}');
     return Twofold.error(_mapDioExceptionToNetworkError(e));
   } on SocketException catch (e, st) {
+    print('[API ERROR] $path → SocketException: $e');
     return Twofold.error(
       NetworkError(
         cause: e,
@@ -55,6 +58,7 @@ Future<Twofold<T, NetworkError>> safeApiCall<T>(String path) async {
       ),
     );
   } on TimeoutException catch (e, st) {
+    print('[API ERROR] $path → TimeoutException: $e');
     return Twofold.error(
       NetworkError(
         cause: e,
@@ -63,6 +67,7 @@ Future<Twofold<T, NetworkError>> safeApiCall<T>(String path) async {
       ),
     );
   } on IOException catch (e, st) {
+    print('[API ERROR] $path → IOException: $e');
     return Twofold.error(
       NetworkError(
         cause: e,
@@ -72,6 +77,7 @@ Future<Twofold<T, NetworkError>> safeApiCall<T>(String path) async {
       ),
     );
   } on FormatException catch (e, st) {
+    print('[API ERROR] $path → FormatException: $e');
     return Twofold.error(
       NetworkError(
         cause: e,
@@ -81,6 +87,7 @@ Future<Twofold<T, NetworkError>> safeApiCall<T>(String path) async {
       ),
     );
   } catch (e, st) {
+    print('[API ERROR] $path → $e');
     return Twofold.error(
       NetworkError(
         cause: e,
