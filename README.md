@@ -299,3 +299,5 @@ The dropdown is wrapped in `IgnorePointer` during save to prevent interaction.
 7. **30-second timeout** — API calls have a 30-second timeout for both connection and response. This is generous enough for slow networks but prevents indefinite hangs.
 
 8. **Web compatibility** — The app uses `hive_flutter` which works on web without additional setup (no native SQLite dependencies needed).
+
+9. **UI designs generated with Stitch AI** — The application's UI designs were created using Stitch AI, then implemented in Flutter.
